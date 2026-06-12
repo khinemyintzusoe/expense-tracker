@@ -29,6 +29,7 @@ create table if not exists public.accounts (
   name            text not null,
   type            text not null default 'bank' check (type in ('cash', 'bank', 'card', 'wallet', 'other')),
   opening_balance numeric(14,2) not null default 0,
+  owner_member_id uuid references public.household_members(id) on delete set null,
   is_archived     boolean not null default false,
   sort_order      int not null default 0,
   created_at      timestamptz not null default now()
@@ -157,6 +158,7 @@ select
   a.household_id,
   a.name,
   a.type,
+  a.owner_member_id,
   a.is_archived,
   a.sort_order,
   a.opening_balance,

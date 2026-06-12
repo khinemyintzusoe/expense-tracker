@@ -2,43 +2,45 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useHousehold } from '../context/HouseholdContext'
 import { fmtMoney, thisMonth, monthRange, monthLabel, shiftMonth } from '../lib/format'
+import PersonToggle from '../components/PersonToggle'
 
 export default function Reports() {
-  const { member } = useHousehold()
+  const { member, members } = useHousehold()
   const hid = member.household_id
+  const [who, setWho] = useState('all')
   const [month, setMonth] = useState(thisMonth())
   const [txns, setTxns] = useState([])
   const [trend, setTrend] = useState([])
+  const [ownerOf, setOwnerOf] = useState({})
 
   const load = useCallback(async () => {
     const { from, to } = monthRange(month)
     const { from: trendFrom } = monthRange(shiftMonth(month, -5))
-    const [cur, six] = await Promise.all([
-      supabase.from('transactions').select('type, amount, categories(name, color)')
+    const [cur, six, accs] = await Promise.all([
+      supabase.from('transactions').select('type, amount, account_id, categories(name, color)')
         .eq('household_id', hid).gte('txn_date', from).lte('txn_date', to).neq('type', 'transfer'),
-      supabase.from('transactions').select('type, amount, txn_date')
+      supabase.from('transactions').select('type, amount, account_id, txn_date')
         .eq('household_id', hid).gte('txn_date', trendFrom).lte('txn_date', to).neq('type', 'transfer'),
+      supabase.from('accounts').select('id, owner_member_id').eq('household_id', hid),
     ])
+    const owner = Object.fromEntries((accs.data ?? []).map((a) => [a.id, a.owner_member_id]))
+    setOwnerOf(owner)
     setTxns(cur.data ?? [])
 
     const months = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5))
-    setTrend(months.map((ym) => {
-      const rows = (six.data ?? []).filter((t) => t.txn_date.startsWith(ym))
-      return {
-        ym,
-        out: rows.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0),
-        inn: rows.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0),
-      }
-    }))
+    setTrend(months.map((ym) => ({ ym, rows: (six.data ?? []).filter((t) => t.txn_date.startsWith(ym)) })))
   }, [hid, month])
 
   useEffect(() => { load() }, [load])
 
-  const spent = txns.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
-  const earned = txns.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+  const mine = (accId) => who === 'all' || ownerOf[accId] === who
+  const visTxns = txns.filter((t) => mine(t.account_id))
+
+  const spent = visTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+  const earned = visTxns.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
 
   const byCat = Object.values(
-    txns.filter((t) => t.type === 'expense').reduce((acc, t) => {
+    visTxns.filter((t) => t.type === 'expense').reduce((acc, t) => {
       const key = t.categories?.name ?? 'Uncategorised'
       acc[key] ??= { name: key, color: t.categories?.color ?? '#71717a', total: 0 }
       acc[key].total += Number(t.amount)
@@ -46,16 +48,27 @@ export default function Reports() {
     }, {})
   ).sort((a, b) => b.total - a.total)
 
-  const maxTrend = Math.max(1, ...trend.flatMap((m) => [m.out, m.inn]))
+  const trendData = trend.map((m) => {
+    const rows = m.rows.filter((t) => mine(t.account_id))
+    return {
+      ym: m.ym,
+      out: rows.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0),
+      inn: rows.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0),
+    }
+  })
+  const maxTrend = Math.max(1, ...trendData.flatMap((m) => [m.out, m.inn]))
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2">
-        <button onClick={() => setMonth(shiftMonth(month, -1))}
-          className="pressable glass-card px-3 py-1.5 text-sm font-extrabold">‹</button>
-        <span className="font-extrabold tracking-tight min-w-36 text-center">{monthLabel(month)}</span>
-        <button onClick={() => setMonth(shiftMonth(month, 1))}
-          className="pressable glass-card px-3 py-1.5 text-sm font-extrabold">›</button>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setMonth(shiftMonth(month, -1))}
+            className="pressable glass-card px-3 py-1.5 text-sm font-extrabold">‹</button>
+          <span className="font-extrabold tracking-tight min-w-36 text-center">{monthLabel(month)}</span>
+          <button onClick={() => setMonth(shiftMonth(month, 1))}
+            className="pressable glass-card px-3 py-1.5 text-sm font-extrabold">›</button>
+        </div>
+        <PersonToggle who={who} setWho={setWho} members={members} />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -98,7 +111,7 @@ export default function Reports() {
       <section className="glass-card p-4">
         <h2 className="text-sm font-extrabold uppercase tracking-wide text-ink-dim mb-3">Last 6 months</h2>
         <div className="flex items-end gap-2 h-36">
-          {trend.map((m) => (
+          {trendData.map((m) => (
             <div key={m.ym} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
               <div className="w-full flex items-end justify-center gap-1 flex-1">
                 <div className="w-2/5 rounded-t bg-white/15" title={`Out ${fmtMoney(m.out)}`}

@@ -6,16 +6,27 @@ const HouseholdContext = createContext(null)
 export function HouseholdProvider({ children }) {
   const [session, setSession] = useState(null)
   const [member, setMember] = useState(null) // row from household_members, incl. household_id
+  const [members, setMembers] = useState([]) // everyone in the household
   const [loading, setLoading] = useState(isConfigured)
 
   const loadMember = useCallback(async (sess) => {
-    if (!sess) { setMember(null); return }
+    if (!sess) { setMember(null); setMembers([]); return }
     const { data } = await supabase
       .from('household_members')
       .select('*, households(name, invite_code)')
       .eq('user_id', sess.user.id)
       .maybeSingle()
     setMember(data ?? null)
+    if (data?.household_id) {
+      const { data: mem } = await supabase
+        .from('household_members')
+        .select('id, user_id, display_name')
+        .eq('household_id', data.household_id)
+        .order('created_at')
+      setMembers(mem ?? [])
+    } else {
+      setMembers([])
+    }
   }, [])
 
   useEffect(() => {
@@ -36,7 +47,7 @@ export function HouseholdProvider({ children }) {
   const signOut = useCallback(() => supabase.auth.signOut(), [])
 
   return (
-    <HouseholdContext.Provider value={{ session, member, loading, refreshMember, signOut }}>
+    <HouseholdContext.Provider value={{ session, member, members, loading, refreshMember, signOut }}>
       {children}
     </HouseholdContext.Provider>
   )

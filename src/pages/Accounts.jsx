@@ -6,12 +6,13 @@ import { fmtMoney } from '../lib/format'
 const ACCOUNT_TYPES = ['cash', 'bank', 'card', 'wallet', 'other']
 
 export default function Accounts() {
-  const { member } = useHousehold()
+  const { member, members } = useHousehold()
   const hid = member.household_id
   const [rows, setRows] = useState([])
   const [showArchived, setShowArchived] = useState(false)
   const [name, setName] = useState('')
   const [type, setType] = useState('bank')
+  const [owner, setOwner] = useState('') // '' = Joint
   const [opening, setOpening] = useState('')
   const [err, setErr] = useState(null)
 
@@ -28,11 +29,12 @@ export default function Accounts() {
     setErr(null)
     const { error } = await supabase.from('accounts').insert({
       household_id: hid, name: name.trim(), type,
+      owner_member_id: owner || null,
       opening_balance: Number(opening) || 0,
       sort_order: rows.length + 1,
     })
     if (error) { setErr(error.message); return }
-    setName(''); setOpening('')
+    setName(''); setOpening(''); setOwner('')
     load()
   }
 
@@ -41,22 +43,32 @@ export default function Accounts() {
     load()
   }
 
+  async function setOwnerFor(id, value) {
+    await supabase.from('accounts').update({ owner_member_id: value || null }).eq('id', id)
+    load()
+  }
+
+  const ownerName = (id) => members.find((m) => m.id === id)?.display_name ?? 'Joint'
   const visible = rows.filter((r) => showArchived || !r.is_archived)
 
   return (
     <div className="space-y-4">
-      <form onSubmit={add} className="glass-card p-4 grid sm:grid-cols-4 gap-3">
+      <form onSubmit={add} className="glass-card p-4 grid sm:grid-cols-5 gap-3">
         <input value={name} onChange={(e) => setName(e.target.value)} required
-          placeholder="Account name" className="field" />
+          placeholder="Account name" className="field sm:col-span-2" />
         <select value={type} onChange={(e) => setType(e.target.value)} className="field">
           {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
+        <select value={owner} onChange={(e) => setOwner(e.target.value)} className="field">
+          <option value="">Joint</option>
+          {members.map((m) => <option key={m.id} value={m.id}>{m.display_name}</option>)}
+        </select>
         <input type="number" step="0.01" value={opening} onChange={(e) => setOpening(e.target.value)}
-          placeholder="Opening balance (AED)" className="field num" />
-        <button type="submit" className="pressable rounded-xl bg-brand text-page font-extrabold py-2">
+          placeholder="Opening (AED)" className="field num" />
+        <button type="submit" className="pressable sm:col-span-5 rounded-xl bg-brand text-page font-extrabold py-2">
           Add account
         </button>
-        {err && <p className="sm:col-span-4 text-xs font-semibold text-red-400">{err}</p>}
+        {err && <p className="sm:col-span-5 text-xs font-semibold text-red-400">{err}</p>}
       </form>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -73,6 +85,18 @@ export default function Accounts() {
               </button>
             </div>
             <p className="num text-xl font-extrabold mt-2">{fmtMoney(a.balance)}</p>
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs font-bold text-ink-faint">Owner</span>
+              <select
+                value={a.owner_member_id ?? ''}
+                onChange={(e) => setOwnerFor(a.account_id, e.target.value)}
+                className="field py-1 text-xs flex-1"
+                title={`Currently: ${ownerName(a.owner_member_id)}`}
+              >
+                <option value="">Joint</option>
+                {members.map((m) => <option key={m.id} value={m.id}>{m.display_name}</option>)}
+              </select>
+            </div>
           </div>
         ))}
       </div>

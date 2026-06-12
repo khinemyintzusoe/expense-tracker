@@ -3,15 +3,17 @@ import { supabase } from '../lib/supabase'
 import { useHousehold } from '../context/HouseholdContext'
 import { fmtMoney, fmtDate, thisMonth, monthRange, monthLabel, shiftMonth } from '../lib/format'
 import TxnForm from '../components/TxnForm'
+import PersonToggle from '../components/PersonToggle'
 
 export default function Transactions() {
-  const { member } = useHousehold()
+  const { member, members } = useHousehold()
   const hid = member.household_id
+  const [who, setWho] = useState('all')
   const [month, setMonth] = useState(thisMonth())
   const [txns, setTxns] = useState([])
   const [accounts, setAccounts] = useState([])
   const [categories, setCategories] = useState([])
-  const [members, setMembers] = useState({})
+  const [memberNames, setMemberNames] = useState({})
   const [showForm, setShowForm] = useState(false)
 
   const load = useCallback(async () => {
@@ -28,7 +30,7 @@ export default function Transactions() {
     setTxns(tx.data ?? [])
     setAccounts(acc.data ?? [])
     setCategories(cat.data ?? [])
-    setMembers(Object.fromEntries((mem.data ?? []).map((m) => [m.user_id, m.display_name])))
+    setMemberNames(Object.fromEntries((mem.data ?? []).map((m) => [m.user_id, m.display_name])))
   }, [hid, month])
 
   useEffect(() => { load() }, [load])
@@ -39,8 +41,10 @@ export default function Transactions() {
     load()
   }
 
-  const spent = txns.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
-  const earned = txns.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+  const ownerOf = Object.fromEntries(accounts.map((a) => [a.id, a.owner_member_id]))
+  const visTxns = txns.filter((t) => who === 'all' || ownerOf[t.account_id] === who)
+  const spent = visTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+  const earned = visTxns.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
 
   return (
     <div className="space-y-4">
@@ -58,6 +62,8 @@ export default function Transactions() {
         </button>
       </div>
 
+      <PersonToggle who={who} setWho={setWho} members={members} />
+
       <div className="flex gap-4 text-sm">
         <p className="text-ink-dim">Out <span className="num font-extrabold text-ink">{fmtMoney(spent)}</span></p>
         <p className="text-ink-dim">In <span className="num font-extrabold text-brand">{fmtMoney(earned)}</span></p>
@@ -65,7 +71,7 @@ export default function Transactions() {
       </div>
 
       <div className="glass-card divide-y divide-white/5">
-        {txns.map((t) => (
+        {visTxns.map((t) => (
           <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3 group">
             <div className="min-w-0">
               <p className="font-bold text-sm truncate">
@@ -76,7 +82,7 @@ export default function Transactions() {
               </p>
               <p className="text-xs text-ink-faint">
                 {fmtDate(t.txn_date)} · {t.accounts?.name}
-                {members[t.created_by] ? ` · by ${members[t.created_by]}` : ''}
+                {memberNames[t.created_by] ? ` · by ${memberNames[t.created_by]}` : ''}
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
@@ -90,7 +96,7 @@ export default function Transactions() {
             </div>
           </div>
         ))}
-        {txns.length === 0 && (
+        {visTxns.length === 0 && (
           <p className="px-4 py-8 text-sm text-ink-faint text-center">No transactions in {monthLabel(month)}.</p>
         )}
       </div>

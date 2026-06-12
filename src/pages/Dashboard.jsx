@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useHousehold } from '../context/HouseholdContext'
 import { fmtMoney, fmtDate, thisMonth, monthRange, todayISO } from '../lib/format'
+import PersonToggle from '../components/PersonToggle'
 
 export default function Dashboard() {
-  const { member } = useHousehold()
+  const { member, members } = useHousehold()
   const hid = member.household_id
+  const [who, setWho] = useState('all')
   const [balances, setBalances] = useState([])
   const [monthTx, setMonthTx] = useState([])
   const [recent, setRecent] = useState([])
@@ -17,10 +19,10 @@ export default function Dashboard() {
     const { from, to } = monthRange(thisMonth())
     const [bal, mtx, rec, dueRules] = await Promise.all([
       supabase.from('account_balances').select('*').eq('household_id', hid).eq('is_archived', false),
-      supabase.from('transactions').select('type, amount').eq('household_id', hid).gte('txn_date', from).lte('txn_date', to),
+      supabase.from('transactions').select('type, amount, account_id').eq('household_id', hid).gte('txn_date', from).lte('txn_date', to),
       supabase.from('transactions')
-        .select('id, type, amount, note, txn_date, categories(name), accounts!transactions_account_id_fkey(name)')
-        .eq('household_id', hid).order('txn_date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
+        .select('id, type, amount, note, txn_date, account_id, categories(name), accounts!transactions_account_id_fkey(name)')
+        .eq('household_id', hid).order('txn_date', { ascending: false }).order('created_at', { ascending: false }).limit(8),
       supabase.from('recurring_rules').select('*, categories(name)').eq('household_id', hid)
         .eq('is_active', true).lte('next_run', todayISO()),
     ])
@@ -39,9 +41,17 @@ export default function Dashboard() {
     setLogging(null)
   }
 
-  const totalBalance = balances.reduce((s, b) => s + Number(b.balance), 0)
-  const spent = monthTx.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
-  const earned = monthTx.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+  // account_id -> owner_member_id, so we can filter anything by person
+  const ownerOf = Object.fromEntries(balances.map((b) => [b.account_id, b.owner_member_id]))
+  const mine = (accId) => who === 'all' || ownerOf[accId] === who
+
+  const visBalances = balances.filter((b) => mine(b.account_id))
+  const visMonthTx = monthTx.filter((t) => mine(t.account_id))
+  const visRecent = recent.filter((t) => mine(t.account_id)).slice(0, 5)
+
+  const totalBalance = visBalances.reduce((s, b) => s + Number(b.balance), 0)
+  const spent = visMonthTx.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+  const earned = visMonthTx.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
 
   const stats = [
     { label: 'Total balance', value: totalBalance, grad: 'grad-indigo' },
@@ -52,6 +62,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <PersonToggle who={who} setWho={setWho} members={members} />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((s) => (
           <div key={s.label} className={`stagger-item ${s.grad} rounded-2xl p-4 text-white shadow-lg`}>
@@ -61,7 +73,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {due.length > 0 && (
+      {due.length > 0 && who === 'all' && (
         <section>
           <h2 className="text-sm font-extrabold uppercase tracking-wide text-ink-dim mb-2">Due now</h2>
           <div className="space-y-2">
@@ -94,15 +106,15 @@ export default function Dashboard() {
           <Link to="/accounts" className="text-xs font-bold text-brand hover:underline">Manage</Link>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {balances.sort((a, b) => a.sort_order - b.sort_order).map((b) => (
+          {visBalances.sort((a, b) => a.sort_order - b.sort_order).map((b) => (
             <div key={b.account_id} className="glass-card lift-on-hover p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-ink-faint">{b.type}</p>
               <p className="font-bold mt-0.5">{b.name}</p>
               <p className="num text-lg font-extrabold mt-1">{fmtMoney(b.balance)}</p>
             </div>
           ))}
-          {balances.length === 0 && (
-            <p className="text-sm text-ink-faint">No accounts yet — add one under Accounts.</p>
+          {visBalances.length === 0 && (
+            <p className="text-sm text-ink-faint">No accounts here yet — add one under Accounts.</p>
           )}
         </div>
       </section>
@@ -113,7 +125,7 @@ export default function Dashboard() {
           <Link to="/transactions" className="text-xs font-bold text-brand hover:underline">View all</Link>
         </div>
         <div className="glass-card divide-y divide-white/5">
-          {recent.map((t) => (
+          {visRecent.map((t) => (
             <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="font-bold text-sm truncate">
@@ -127,7 +139,7 @@ export default function Dashboard() {
               </span>
             </div>
           ))}
-          {recent.length === 0 && (
+          {visRecent.length === 0 && (
             <p className="px-4 py-6 text-sm text-ink-faint">Nothing yet — log your first transaction.</p>
           )}
         </div>
