@@ -10,8 +10,12 @@ alter table public.accounts
   add column if not exists owner_member_id uuid
   references public.household_members(id) on delete set null;
 
--- 2. Expose owner on the balances view
-create or replace view public.account_balances
+-- 2. Expose owner on the balances view.
+--    Drop first: create-or-replace can't insert a column mid-list on an
+--    existing view (Postgres error 42P16).
+drop view if exists public.account_balances;
+
+create view public.account_balances
 with (security_invoker = on) as
 select
   a.id as account_id,
