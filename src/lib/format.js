@@ -1,22 +1,24 @@
-// Indian-style number formatting: 10,00,000
-const inr0 = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
-const inr2 = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+// AED, Western grouping: 1,000,000.00
+const nf0 = new Intl.NumberFormat('en-AE', { maximumFractionDigits: 0 })
+const nf2 = new Intl.NumberFormat('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+export const CURRENCY = 'AED'
 
 export function fmtNum(n) {
   const v = Number(n) || 0
-  return Number.isInteger(v) ? inr0.format(v) : inr2.format(v)
+  return Number.isInteger(v) ? nf0.format(v) : nf2.format(v)
 }
 
 export function fmtMoney(n) {
   const v = Number(n) || 0
   const sign = v < 0 ? '−' : ''
-  return `${sign}₹${fmtNum(Math.abs(v))}`
+  return `${sign}${CURRENCY} ${fmtNum(Math.abs(v))}`
 }
 
 export function fmtDate(iso) {
   if (!iso) return ''
   const d = new Date(iso + 'T00:00:00')
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  return d.toLocaleDateString('en-AE', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export function todayISO() {
@@ -27,7 +29,7 @@ export function todayISO() {
 
 export function monthLabel(ym) {
   const [y, m] = ym.split('-').map(Number)
-  return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+  return new Date(y, m - 1, 1).toLocaleDateString('en-AE', { month: 'long', year: 'numeric' })
 }
 
 export function thisMonth() {

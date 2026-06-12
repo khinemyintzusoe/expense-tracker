@@ -97,7 +97,7 @@ export default function Recurring() {
               <option value="income">Income</option>
             </select>
             <input type="number" step="0.01" min="0.01" required value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="Amount (₹)" className="field num" />
+              onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="Amount (AED)" className="field num" />
             <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })}
               placeholder="Name / note (e.g. Rent)" className="field" />
           </div>

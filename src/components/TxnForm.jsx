@@ -62,7 +62,7 @@ export default function TxnForm({ householdId, accounts, categories, onSaved, on
           ))}
         </div>
         <input type="number" step="0.01" min="0.01" required value={amount}
-          onChange={(e) => setAmount(e.target.value)} placeholder="Amount (₹)" className="field num" autoFocus />
+          onChange={(e) => setAmount(e.target.value)} placeholder="Amount (AED)" className="field num" autoFocus />
         <div className="grid grid-cols-2 gap-3">
           <select required value={accountId} onChange={(e) => setAccountId(e.target.value)} className="field">
             <option value="" disabled>{type === 'transfer' ? 'From account' : 'Account'}</option>

@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="glow" cx="78%" cy="18%" r="80%">
+      <stop offset="0%" stop-color="#39ff7a" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#39ff7a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#141414"/>
+  <rect width="512" height="512" rx="112" fill="url(#glow)"/>
+  <!-- ascending bars: the "tracking" motif, neon green -->
+  <g fill="#39ff7a">
+    <rect x="148" y="300" width="44" height="64"  rx="10"/>
+    <rect x="216" y="252" width="44" height="112" rx="10"/>
+    <rect x="284" y="196" width="44" height="168" rx="10"/>
+    <rect x="352" y="148" width="44" height="216" rx="10"/>
+  </g>
+</svg>

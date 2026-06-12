@@ -15,7 +15,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-page/80" style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-page/80" style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-baseline gap-3 min-w-0">
@@ -53,7 +53,7 @@ export default function Layout() {
           </nav>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="max-w-5xl mx-auto px-4 py-6" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
         <Outlet />
       </main>
     </div>

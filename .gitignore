@@ -18,3 +18,5 @@ dist-ssr
 .DS_Store
 *.local
 *.log
+
+.vercel

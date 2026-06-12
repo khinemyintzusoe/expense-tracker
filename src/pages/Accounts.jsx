@@ -52,7 +52,7 @@ export default function Accounts() {
           {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
         <input type="number" step="0.01" value={opening} onChange={(e) => setOpening(e.target.value)}
-          placeholder="Opening balance (₹)" className="field num" />
+          placeholder="Opening balance (AED)" className="field num" />
         <button type="submit" className="pressable rounded-xl bg-brand text-page font-extrabold py-2">
           Add account
         </button>

@@ -1,0 +1,19 @@
+{
+  "name": "Expense Tracker",
+  "short_name": "Expenses",
+  "description": "Shared household expenses, income and accounts.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#141414",
+  "theme_color": "#141414",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
